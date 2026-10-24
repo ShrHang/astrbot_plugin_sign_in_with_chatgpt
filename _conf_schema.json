@@ -1,0 +1,9 @@
+{
+  "register_provider": {"type": "bool", "description": "启用 ChatGPT 订阅供应商接入（关闭后撤下类型选项并停止模型实例，保留已有配置和账号绑定）", "default": true},
+  "enable_native_web_search": {"type": "bool", "description": "是否开启 OpenAI 原生网页搜索（开启后允许 SIWC 模型按需搜索；建议同时关闭 AstrBot 自带网络搜索，避免重复检索。可用性受模型及账号策略限制；保存后由宿主热重载生效）", "default": false},
+  "proxy": {"type": "string", "description": "显式 HTTP 代理（留空直连；不读取环境代理）", "default": ""},
+  "connect_timeout": {"type": "int", "description": "网络连接超时（秒）", "default": 15},
+  "read_timeout": {"type": "int", "description": "网络读取空闲超时（秒）", "default": 90},
+  "total_timeout": {"type": "int", "description": "单次调用总时间预算（秒，含排队和刷新）", "default": 180},
+  "max_concurrency": {"type": "int", "description": "共享最大并发请求数", "default": 2}
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+.test-runtime/
+credentials.bin
+credentials.bin.*
+.credentials-*
+owner.lock
+*.log
+dist/

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatGPT 订阅 · 账号管理</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="/api/plugin/page/bridge-sdk.js"></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><span class="eyebrow">ChatGPT 订阅（个人）</span><h1>账号管理</h1>
+      <p>管理 ChatGPT 账号登录与绑定。</p></header>
+    <section aria-labelledby="connection-title">
+      <div class="heading"><h2 id="connection-title">连接状态</h2><strong id="account-state">正在读取…</strong></div>
+      <p id="account-help" aria-live="polite">正在读取账号登录状态…</p>
+      <div class="actions"><button id="login" disabled>Continue with ChatGPT</button>
+        <button id="logout" class="danger">解绑账号</button></div>
+      <p id="countdown" class="hint"></p>
+      <div id="notice" role="status" aria-live="polite"></div>
+    </section>
+    <section aria-labelledby="models-title">
+      <div class="heading"><h2 id="models-title">可用模型</h2><button id="models-refresh" class="secondary">刷新模型列表</button></div>
+      <ul id="models"><li>点击刷新获取账号模型目录</li></ul>
+    </section>
+  </main>
+</body>
+</html>
