@@ -56,7 +56,7 @@ def _dpapi(data: bytes, decrypt: bool = False) -> bytes:
 
 
 class CredentialStore:
-    """Hold the OS lock throughout a plugin/CLI lifetime; never steal stale locks."""
+    """Hold the OS lock throughout the plugin lifetime; never steal stale locks."""
 
     def __init__(self, directory: Path):
         self.directory = Path(directory).resolve()
@@ -82,7 +82,7 @@ class CredentialStore:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             handle.close()
-            raise SIWCError("busy", "凭据被其他进程使用；日常操作请打开 AstrBot 插件的 account 管理页，CLI 恢复前先停用插件") from None
+            raise SIWCError("busy", "凭据被其他进程使用；请确认没有其他 AstrBot 实例使用同一插件数据目录") from None
         self._lock_file = handle
         try:
             if self.path.exists():

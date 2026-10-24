@@ -317,7 +317,7 @@ def parse_search_result(response: dict) -> dict:
 
 
 def parse_result(response: dict, names: set[str]):
-    # Import AstrBot only at the adapter boundary so OAuth CLI has no host dependency.
+    # Keep the AstrBot response types at the adapter boundary.
     from astrbot.core.provider.entities import LLMResponse, TokenUsage
 
     result = LLMResponse(role="assistant", id=response.get("id"))

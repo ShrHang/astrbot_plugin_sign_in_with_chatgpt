@@ -1,4 +1,4 @@
-"""Read grouped plugin settings for transport and CLI consumers."""
+"""Read grouped plugin settings for runtime consumers."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ CONFIG_GROUPS = {
 
 
 def read_settings(config: dict) -> dict:
-    """Keep transport and CLI consumers independent of the dashboard grouping."""
+    """Keep runtime consumers independent of the dashboard grouping."""
     settings = {}
     for group, keys in CONFIG_GROUPS.items():
         values = config.get(group)

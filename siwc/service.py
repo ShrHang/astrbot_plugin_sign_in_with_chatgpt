@@ -228,7 +228,7 @@ class Service:
             self.admission()
             registration = self.record.get("registration") or {}
             if not registration.get("access_token") or self.state == "login_required":
-                raise SIWCError("login_required", "尚无有效绑定，请在插件管理页授权，或停用后使用 CLI 恢复")
+                raise SIWCError("login_required", "尚无有效绑定，请在插件的 account 管理页授权")
             if registration.get("expires_at", 0) > time.time() + 60:
                 return registration["access_token"]
             generation = self.generation
