@@ -1,8 +1,10 @@
 # Sign in with ChatGPT
 
-> [!WARNING] 本项目为个人插件，目前仅在 Windows / AstrBot Desktop 上测试过，不保证在其他环境下稳定运行。
+> [!WARNING]
+> 本项目为个人插件，目前仅在 Windows / AstrBot Desktop 上测试过，不保证在其他环境下稳定运行。
 
-> [!IMPORTANT] 需要至少 AstrBot 4.29.1
+> [!IMPORTANT]
+> 需要至少 AstrBot 4.29.1
 
 本项目是面向 Windows / AstrBot 4.29.1 的 AstrBot 插件，通过 Sign in with ChatGPT (SIWC) 官方接口授权接入 ChatGPT 订阅模型。
 
