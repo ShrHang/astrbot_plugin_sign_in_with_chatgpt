@@ -6,7 +6,6 @@ import copy
 import json
 import re
 from collections import Counter
-from urllib.parse import urlsplit
 
 from .errors import SIWCError, sse_error
 
@@ -14,50 +13,7 @@ NAMESPACE = "astrbot"
 REASONING_STATE = "openai_responses_reasoning"
 
 
-class CitationRenderer:
-    """Render only response annotations; no source lookup or invented URLs."""
-
-    MARKER = re.compile(r"\ue200cite\ue202[^\ue201]*\ue201")
-
-    def __init__(self):
-        self.sources = {}
-
-    @staticmethod
-    def valid_url(value):
-        if not isinstance(value, str) or any(c.isspace() or ord(c) < 32 or c in '<>\\' for c in value):
-            return False
-        try:
-            url = urlsplit(value)
-            return url.scheme in {"https", "http"} and bool(url.hostname) and not url.username and not url.password
-        except ValueError:
-            return False
-
-    def render(self, text, annotations):
-        insertions = {}
-        for annotation in annotations if isinstance(annotations, list) else []:
-            if not isinstance(annotation, dict) or annotation.get("type") != "url_citation":
-                continue
-            url = annotation.get("url")
-            if not self.valid_url(url):
-                continue
-            if url not in self.sources:
-                title = annotation.get("title")
-                title = " ".join(title.split()) if isinstance(title, str) else ""
-                self.sources[url] = (len(self.sources) + 1, title)
-            number = self.sources[url][0]
-            start, end = annotation.get("start_index"), annotation.get("end_index")
-            if type(start) is int and type(end) is int and 0 <= start <= end <= len(text):
-                if url not in text[start:end]:
-                    insertions.setdefault(end, set()).add(number)
-        for end in sorted(insertions, reverse=True):
-            labels = "".join(f"[{n}]" for n in sorted(insertions[end]))
-            text = text[:end] + labels + text[end:]
-        return self.MARKER.sub("", text)
-
-    def finish(self, text):
-        existing = {u.rstrip('.,;!?，。；！？') for u in re.findall(r'https?://[^\s<>()\[\]{}]+', text)}
-        sources = [f"[{number}] {title or '来源'}\n{url}" for url, (number, title) in self.sources.items() if url not in existing]
-        return text + ("\n\n来源：\n" + "\n".join(sources) if sources else "")
+SEARCH_CITATION_MARKER = re.compile(r"\ue200cite\ue202[^\ue201]*\ue201")
 
 
 class CompletedOutput:
@@ -304,7 +260,6 @@ def parse_result(response: dict, names: set[str], *, native_web_search=False):
 
     result = LLMResponse(role="assistant", id=response.get("id"))
     text, reasoning, states, seen = [], [], [], set()
-    citations = CitationRenderer() if native_web_search else None
     searched = False
     for item in response.get("output", []):
         kind = item.get("type")
@@ -312,7 +267,9 @@ def parse_result(response: dict, names: set[str], *, native_web_search=False):
             for part in item.get("content", []):
                 if part.get("type") == "output_text":
                     value = part.get("text", "")
-                    text.append(citations.render(value, part.get("annotations")) if citations else value)
+                    # Citation metadata must not force links into the answer.
+                    # Preserve model-written text and remove only internal markers.
+                    text.append(SEARCH_CITATION_MARKER.sub("", value) if native_web_search else value)
                 elif part.get("type") == "refusal":
                     text.append(part.get("refusal", ""))
         elif kind == "reasoning":
@@ -338,8 +295,7 @@ def parse_result(response: dict, names: set[str], *, native_web_search=False):
             searched = True  # Hosted execution; never hand it to the function executor.
         else:
             raise SIWCError("protocol", "模型返回了本插件尚未支持的输出类型")
-    answer = "".join(text)
-    result.completion_text = citations.finish(answer) if citations and answer else answer
+    result.completion_text = "".join(text)
     result.reasoning_content = "\n".join(reasoning) or None
     if states:
         result.reasoning_signature = json.dumps({"type": REASONING_STATE, "items": states}, ensure_ascii=False)

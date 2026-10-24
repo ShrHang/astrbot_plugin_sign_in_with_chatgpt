@@ -211,8 +211,8 @@ class SIWCProvider(ProviderOpenAIResponses):
                                 if searches:
                                     logger.info("SIWC 原生网页搜索完成：调用次数=%s", searches)
                             if _native_web_search and result.completion_text:
-                                # Annotations can arrive after text deltas. Emit cited
-                                # text only once it is final, identically to text_chat.
+                                # Internal citation markers can span text deltas.
+                                # Emit cleaned final text, identically to text_chat.
                                 await queue.put(LLMResponse(role="assistant", completion_text=result.completion_text, is_chunk=True))
                             await queue.put(result)
                             return
