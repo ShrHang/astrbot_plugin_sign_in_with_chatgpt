@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import copy
 
-from . import PROVIDER_TYPE
+from . import DISPLAY_NAME, PROVIDER_TYPE
 
-DISPLAY_NAME = "ChatGPT 订阅（个人）"
-TEMPLATE = {"id": "siwc_chatgpt", "type": PROVIDER_TYPE, "provider": "openai", "enable": False,
+TEMPLATE = {"id": "SIWC", "type": PROVIDER_TYPE, "provider": "openai", "enable": False,
             "provider_type": "chat_completion", "model": "", "key": ["siwc-managed-no-api-key"],
             "reasoning_effort": ""}
 
@@ -25,7 +24,7 @@ class Registration:
             return
         if current is not None:
             raise RuntimeError("SIWC Provider 类型已被另一插件注册")
-        register_provider_adapter(PROVIDER_TYPE, "Sign in with ChatGPT personal provider",
+        register_provider_adapter(PROVIDER_TYPE, DISPLAY_NAME,
             default_config_tmpl=copy.deepcopy(TEMPLATE), provider_display_name=DISPLAY_NAME)(SIWCProvider)
         self.metadata = provider_cls_map[PROVIDER_TYPE]
 

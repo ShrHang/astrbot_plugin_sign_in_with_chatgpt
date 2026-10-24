@@ -6,6 +6,7 @@ import copy
 import json
 import re
 from collections import Counter
+from urllib.parse import urlsplit
 
 from .errors import SIWCError, sse_error
 
@@ -149,9 +150,14 @@ class ResponseDiagnostics:
 
 def adapt_payload(payload: dict, tools, tool_choice="auto", reasoning_effort="", *, native_web_search=False) -> tuple[dict, set[str]]:
     body = copy.deepcopy(payload)
+    # Only explicitly supplied host functions or the isolated search tool are allowed.
+    body.pop("tools", None)
+    body.pop("tool_choice", None)
     body["store"] = False
     body["stream"] = True
     body["include"] = ["reasoning.encrypted_content"]
+    if native_web_search and tools:
+        raise SIWCError("request", "独立搜索请求不能携带 AstrBot 函数工具")
     names = set()
     if tools:
         functions = []
@@ -170,10 +176,9 @@ def adapt_payload(payload: dict, tools, tool_choice="auto", reasoning_effort="",
                 raise SIWCError("request", "仅支持 auto、required、none 工具选择")
             body["tool_choice"] = tool_choice
     if native_web_search:
-        if tool_choice not in {"auto", "required", "none"}:
-            raise SIWCError("request", "仅支持 auto、required、none 工具选择")
-        body["tools"] = [tool for tool in body.get("tools", []) if tool.get("type") != "web_search"] + [{"type": "web_search"}]
-        body.setdefault("tool_choice", tool_choice)
+        body["tools"] = [{"type": "web_search"}]
+        body["tool_choice"] = "required"
+        body["include"].append("web_search_call.action.sources")
     if reasoning_effort:
         if reasoning_effort not in {"none", "minimal", "low", "medium", "high", "xhigh"}:
             raise SIWCError("request", "未知 reasoning_effort")
@@ -254,22 +259,75 @@ def completed_response(event: dict) -> dict | None:
     return response
 
 
-def parse_result(response: dict, names: set[str], *, native_web_search=False):
+def parse_search_result(response: dict) -> dict:
+    """Return research material to a host tool, never a user-facing LLMResponse."""
+    if response.get("status") != "completed":
+        raise SIWCError("incomplete", "搜索响应尚未完整完成", stage="inference")
+    text, citations, consulted = [], [], []
+    searches = 0
+    for item in response.get("output", []):
+        kind = item.get("type")
+        if kind == "web_search_call":
+            if item.get("status") != "completed":
+                raise SIWCError("incomplete", "原生网页搜索未完整完成", stage="inference")
+            searches += 1
+            action = item.get("action")
+            if isinstance(action, dict) and isinstance(action.get("sources"), list):
+                consulted.extend(action["sources"])
+        elif kind == "message":
+            for part in item.get("content", []):
+                if part.get("type") == "output_text":
+                    text.append(part.get("text", ""))
+                    annotations = part.get("annotations")
+                    if isinstance(annotations, list):
+                        citations.extend(source for source in annotations
+                                         if isinstance(source, dict) and source.get("type") == "url_citation")
+                elif part.get("type") == "refusal":
+                    text.append(part.get("refusal", ""))
+                else:
+                    raise SIWCError("protocol", "搜索模型返回了尚未支持的内容类型", stage="inference")
+        elif kind != "reasoning":
+            raise SIWCError("protocol", "搜索模型返回了非搜索工具调用或不支持的输出", stage="inference")
+    if not searches:
+        raise SIWCError("protocol", "模型未实际完成网页搜索，未将回答作为搜索结果交付", stage="inference")
+    summary = SEARCH_CITATION_MARKER.sub("", "".join(text)).strip()
+    if not summary:
+        raise SIWCError("empty", "已完成搜索但没有可用摘要", stage="inference")
+    sources = {}
+    for cited, items in ((True, citations), (False, consulted)):
+        for source in items:
+            if not isinstance(source, dict):
+                continue
+            url = source.get("url")
+            if (not isinstance(url, str) or len(url) > 2048
+                    or any(c.isspace() or ord(c) < 32 or c in '<>\\' for c in url)):
+                continue
+            try:
+                parsed = urlsplit(url)
+                if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+                    continue
+            except ValueError:
+                continue
+            if url in sources or len(sources) >= 32:
+                continue
+            title = source.get("title")
+            sources[url] = {"url": url, "title": " ".join(title.split())[:200] if isinstance(title, str) else "",
+                            "cited": cited}
+    return {"searched": True, "search_count": searches, "summary": summary, "sources": list(sources.values())}
+
+
+def parse_result(response: dict, names: set[str]):
     # Import AstrBot only at the adapter boundary so OAuth CLI has no host dependency.
     from astrbot.core.provider.entities import LLMResponse, TokenUsage
 
     result = LLMResponse(role="assistant", id=response.get("id"))
     text, reasoning, states, seen = [], [], [], set()
-    searched = False
     for item in response.get("output", []):
         kind = item.get("type")
         if kind == "message":
             for part in item.get("content", []):
                 if part.get("type") == "output_text":
-                    value = part.get("text", "")
-                    # Citation metadata must not force links into the answer.
-                    # Preserve model-written text and remove only internal markers.
-                    text.append(SEARCH_CITATION_MARKER.sub("", value) if native_web_search else value)
+                    text.append(part.get("text", ""))
                 elif part.get("type") == "refusal":
                     text.append(part.get("refusal", ""))
         elif kind == "reasoning":
@@ -289,10 +347,6 @@ def parse_result(response: dict, names: set[str], *, native_web_search=False):
             result.tools_call_args.append(args)
             result.tools_call_name.append(name)
             result.tools_call_ids.append(call_id)
-        elif kind == "web_search_call" and native_web_search:
-            if item.get("status") != "completed":
-                raise SIWCError("incomplete", "原生网页搜索未完整完成", stage="inference")
-            searched = True  # Hosted execution; never hand it to the function executor.
         else:
             raise SIWCError("protocol", "模型返回了本插件尚未支持的输出类型")
     result.completion_text = "".join(text)
@@ -301,7 +355,7 @@ def parse_result(response: dict, names: set[str], *, native_web_search=False):
         result.reasoning_signature = json.dumps({"type": REASONING_STATE, "items": states}, ensure_ascii=False)
     if result.tools_call_ids:
         result.role = "tool"
-    if not result.completion_text and not result.tools_call_ids and (searched or not result.reasoning_content):
+    if not result.completion_text and not result.tools_call_ids and not result.reasoning_content:
         raise SIWCError("empty", "已完成响应中没有可用文本或工具调用")
     usage = response.get("usage") or {}
     cached = (usage.get("input_tokens_details") or {}).get("cached_tokens", 0)

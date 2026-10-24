@@ -1,9 +1,91 @@
 {
-  "register_provider": {"type": "bool", "description": "启用 ChatGPT 订阅供应商接入（关闭后撤下类型选项并停止模型实例，保留已有配置和账号绑定）", "default": true},
-  "enable_native_web_search": {"type": "bool", "description": "是否开启 OpenAI 原生网页搜索（开启后允许 SIWC 模型按需搜索；建议同时关闭 AstrBot 自带网络搜索，避免重复检索。可用性受模型及账号策略限制；保存后由宿主热重载生效）", "default": false},
-  "proxy": {"type": "string", "description": "显式 HTTP 代理（留空直连；不读取环境代理）", "default": ""},
-  "connect_timeout": {"type": "int", "description": "网络连接超时（秒）", "default": 15},
-  "read_timeout": {"type": "int", "description": "网络读取空闲超时（秒）", "default": 90},
-  "total_timeout": {"type": "int", "description": "单次调用总时间预算（秒，含排队和刷新）", "default": 180},
-  "max_concurrency": {"type": "int", "description": "共享最大并发请求数", "default": 2}
+  "provider": {
+    "description": "供应商接入",
+    "type": "object",
+    "hint": "通过 Sign in with ChatGPT 使用账号可用模型。账号授权和解绑请前往插件的 account 页面。",
+    "items": {
+      "register_provider": {
+        "description": "启用供应商",
+        "type": "bool",
+        "default": true,
+        "hint": "注册 Sign in with ChatGPT 供应商并加载已启用的模型。关闭后停止模型实例和搜索工具，保留模型配置及账号绑定；账号管理页面仍可使用。"
+      }
+    }
+  },
+  "search": {
+    "description": "网页搜索",
+    "type": "object",
+    "hint": "主模型调用 siwc_web_search 后，由指定模型执行原生搜索，再将摘要和来源交回主模型组织回答。保存设置后由宿主热重载生效。",
+    "items": {
+      "enable_search_tool": {
+        "description": "启用搜索工具",
+        "type": "bool",
+        "default": false,
+        "hint": "需同时启用供应商接入并选择搜索模型。请在当前人设的工具设置中允许使用 siwc_web_search；建议关闭其他重复的搜索工具。"
+      },
+      "search_provider_id": {
+        "description": "搜索模型",
+        "type": "string",
+        "default": "",
+        "_special": "select_provider",
+        "hint": "选择已启用的 Sign in with ChatGPT 模型。此模型仅负责检索，主对话可使用其他供应商。搜索可用性受所选模型及账号策略限制。"
+      },
+      "search_timeout": {
+        "description": "搜索超时",
+        "type": "int",
+        "default": 90,
+        "hint": "单位为秒，最小为 5。包含等待并发名额和检索的时间，实际不超过请求总超时；应小于 AstrBot 的工具调用超时。超时后不自动重试。"
+      },
+      "search_max_chars": {
+        "description": "摘要长度上限",
+        "type": "int",
+        "default": 12000,
+        "hint": "单位为字符，范围为 1000 至 50000。超过上限时截断返回主模型的摘要并标记截断；来源列表单独保留。"
+      }
+    }
+  },
+  "network": {
+    "description": "网络连接",
+    "type": "object",
+    "hint": "统一控制账号授权、令牌刷新、模型目录和推理请求的网络连接。",
+    "items": {
+      "proxy": {
+        "description": "代理地址",
+        "type": "string",
+        "default": "",
+        "hint": "填写完整 HTTP 代理地址，例如 http://127.0.0.1:7890。留空时直接连接，不读取系统环境变量中的代理设置。"
+      },
+      "connect_timeout": {
+        "description": "连接超时",
+        "type": "int",
+        "default": 15,
+        "hint": "单位为秒。建立网络连接时的最长等待时间。"
+      },
+      "read_timeout": {
+        "description": "读取超时",
+        "type": "int",
+        "default": 90,
+        "hint": "单位为秒。等待下一段响应数据的最长空闲时间；持续收到数据时，不按整段响应耗时计算。"
+      }
+    }
+  },
+  "requests": {
+    "description": "请求与并发",
+    "type": "object",
+    "hint": "普通模型调用和独立搜索共用账号的并发名额；排队也计入调用的时间预算。",
+    "items": {
+      "total_timeout": {
+        "description": "请求总超时",
+        "type": "int",
+        "default": 180,
+        "hint": "单位为秒，最小为 5。单次模型调用的总时间预算，包含排队、令牌刷新、输入准备和推理；搜索还受搜索超时限制。"
+      },
+      "max_concurrency": {
+        "description": "最大并发数",
+        "type": "int",
+        "default": 2,
+        "hint": "最小为 1。限制同时执行的模型调用、搜索及模型目录请求数量；超出的请求等待空闲名额。"
+      }
+    }
+  }
 }

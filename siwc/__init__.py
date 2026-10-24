@@ -1,6 +1,7 @@
 """Personal Sign in with ChatGPT transport. Importing this package does no I/O."""
 
 PLUGIN_NAME = "astrbot_plugin_sign_in_with_chatgpt"
+DISPLAY_NAME = "Sign in with ChatGPT"
 PROVIDER_TYPE = "siwc_chat_completion"
 ISSUER = "https://auth.openai.com"
 RESOURCE = "https://api.openai.com/v1"

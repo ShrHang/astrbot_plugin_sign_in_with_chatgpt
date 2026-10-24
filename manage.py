@@ -12,7 +12,8 @@ from pathlib import Path
 
 import httpx
 
-from siwc import PLUGIN_NAME, RESOURCE
+from siwc import DISPLAY_NAME, PLUGIN_NAME, RESOURCE
+from siwc.config import read_settings
 from siwc.errors import SIWCError, http_error
 from siwc.responses import completed_response, sse_events
 from siwc.service import Service
@@ -34,7 +35,7 @@ async def resolve_proxy(directory: Path, explicit: str | None):
         raise SIWCError("config", "无法读取插件代理设置；请检查配置权限或显式传入 --proxy") from None
     try:
         config = json.loads(contents)
-        proxy = config.get("proxy", "")
+        proxy = read_settings(config).get("proxy", "")
         if not isinstance(proxy, str):
             raise ValueError
     except (ValueError, AttributeError):
@@ -95,7 +96,7 @@ async def main(args):
 
 
 def cli():
-    parser = argparse.ArgumentParser(description="AstrBot SIWC 本地账号管理（请先停用插件）")
+    parser = argparse.ArgumentParser(description=f"{DISPLAY_NAME} 本地账号管理（请先停用插件）")
     parser.add_argument("--data-dir", type=Path, help="StarTools.get_data_dir() 对应的绝对目录")
     parser.add_argument("--proxy", default=None, help="覆盖插件代理设置；空字符串强制直连，不读取环境代理")
     parser.add_argument("--port", type=int, default=0, help="回环回调端口，0 为系统分配")

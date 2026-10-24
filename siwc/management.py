@@ -10,7 +10,7 @@ import webbrowser
 import jwt
 from starlette.responses import JSONResponse
 
-from . import PLUGIN_NAME
+from . import DISPLAY_NAME, PLUGIN_NAME
 from .errors import SIWCError, public_error
 
 ACTIVE_PHASES = {"preparing", "waiting_browser", "validating"}
@@ -183,7 +183,7 @@ class Management:
                 return JSONResponse({"status": "ok", "data": data}, status_code=status,
                                     headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
             route = f"/{PLUGIN_NAME}/{action}"
-            context.register_web_api(route, handler, [method], "SIWC account management")
+            context.register_web_api(route, handler, [method], f"{DISPLAY_NAME} account management")
             self.routes.append((route, handler, [method]))
 
     def unregister(self, context):

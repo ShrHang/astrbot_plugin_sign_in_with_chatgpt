@@ -6,7 +6,7 @@ import time
 from functools import wraps
 from pathlib import Path
 import httpx
-from . import RESOURCE
+from . import DISPLAY_NAME, RESOURCE
 from .auth import OAuth, official_url
 from .credentials import CredentialStore
 from .errors import SIWCError, http_error, public_error
@@ -45,7 +45,6 @@ def tracked(operation):
 class Service:
     def __init__(self, directory: Path, config=None, *, client=None):
         config = config or {}
-        self.enable_native_web_search = config.get("enable_native_web_search") is True
         self.store = CredentialStore(directory)
         self.client = client or httpx.AsyncClient(proxy=config.get("proxy") or None, follow_redirects=False,
             trust_env=False, timeout=httpx.Timeout(float(config.get("read_timeout", 90)), connect=float(config.get("connect_timeout", 15))))
@@ -323,5 +322,5 @@ def unbind(service):
 
 def active():
     if _active is None or _active.closed:
-        raise SIWCError("unavailable", "ChatGPT 订阅插件未启用")
+        raise SIWCError("unavailable", f"{DISPLAY_NAME} 插件未启用")
     return _active
