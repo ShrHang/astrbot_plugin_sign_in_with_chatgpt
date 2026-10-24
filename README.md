@@ -1,6 +1,10 @@
 # ChatGPT 订阅
 
-> 提醒：本项目为个人插件，目前不能保证在其他环境下稳定运行。
+> [!WARNING]
+> 本项目为个人插件，目前仅在 AstrBot Desktop Windows 上测试过，不保证在其他环境下稳定运行。
+
+> [!IMPORTANT]
+> 需要 AstrBot 4.29.1+
 
 面向 Windows / AstrBot 4.29.1 的个人插件，通过正式 Sign in with ChatGPT 接入 ChatGPT 订阅模型。
 
