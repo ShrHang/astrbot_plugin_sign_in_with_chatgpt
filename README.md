@@ -1,8 +1,10 @@
 # ChatGPT 订阅
 
-面向 Windows / Snowluma + AstrBot 4.29.1 的个人插件，通过正式 Sign in with ChatGPT 接入 ChatGPT 订阅模型。当前版本 v0.3.0，Provider 类型为 siwc_chat_completion。
+> 提醒：本项目为个人插件，目前不能保证在其他环境下稳定运行。
 
-支持文字、图片输入、函数工具往返、流式响应和可选的 OpenAI 原生网页搜索。人设、历史、群上下文、函数工具执行和回复策略由 AstrBot 管理。暂不支持音频、视频、文件上传及生图。
+面向 Windows / AstrBot 4.29.1 的个人插件，通过正式 Sign in with ChatGPT 接入 ChatGPT 订阅模型。
+
+支持文字、图片输入、函数工具往返、流式响应和可选的 OpenAI 原生网页搜索。暂不支持音频、视频、文件上传及生图。
 
 ## 安装与授权
 
@@ -21,6 +23,12 @@
 
 建议同时关闭 AstrBot 自带网络搜索，避免重复检索。插件不会代为修改宿主或其他插件设置；两者同时开启时不保证只使用其中一种搜索。
 
-在 AstrBot 4.29.1 中保存插件设置会自动热重载，完成后新请求使用新值。重载会停止本插件正在执行的请求，建议空闲时保存；无需重新授权。手工修改配置文件后需重载插件。
+目前原生网页搜索结果会返回网页链接，这一点无法靠提示词约束，有待完善。
 
-开启搜索时，正文在成功终态及引用齐备后一次交付，流式和聚合路径得到相同的正文与来源链接；推理增量仍可按宿主设置显示。关闭时保留原有逐段正文输出。来源编号和链接来自响应注解，不猜测来源。普通历史保留答案、来源及既有推理状态，不另外保存或重放托管搜索操作。
+## 开源许可
+
+Copyright (C) 2026 ShrHang.
+
+本项目采用 GNU Affero General Public License v3.0（`AGPL-3.0-only`），完整条款见 [LICENSE](LICENSE)。
+
+本插件继承并复用 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 的 Provider 和上下文处理能力。AstrBot 本体由其原作者及贡献者持有版权，采用 [AGPL-3.0](https://github.com/AstrBotDevs/AstrBot/blob/master/LICENSE)；本仓库不包含 AstrBot 本体。第三方依赖遵循各自的许可证。
