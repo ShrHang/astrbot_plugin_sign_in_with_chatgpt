@@ -1,9 +1,9 @@
 # Sign in with ChatGPT
 
-> [!WARNING]
+> [!WARNING]  
 > 本项目为个人插件，目前仅在 Windows / AstrBot Desktop 上测试过，不保证在其他环境下稳定运行。
 
-> [!IMPORTANT]
+> [!IMPORTANT]  
 > 需要至少 AstrBot 4.29.1
 
 本项目是面向 Windows / AstrBot 4.29.1 的 AstrBot 插件，通过 Sign in with ChatGPT (SIWC) 官方接口授权接入 ChatGPT 订阅模型。
@@ -35,9 +35,10 @@
 
 ## 独立网页搜索工具(beta)
 
-> [!NOTE] 
+> [!NOTE]  
 > 实际上，SIWC 接口支持直接使用OpenAI模型的原生搜索，但这会导致返回的内容必然引用搜索结果的网址。  
 > 因此，这个工具的本质是封装一层子代理来调用OpenAI模型的原生搜索。
+> 搜索会额外消耗一次或多次模型推理及检索资源，可用性受所选模型和账号策略限制。
 
 1. 在 AstrBot 模型页面配置并启用一个 Sign in with ChatGPT 提供的模型，确认账号已绑定。
 2. 在插件设置的“网页搜索”分组中选择“搜索模型”，开启“启用搜索工具”；“供应商接入 → 启用供应商”也需保持开启。
@@ -52,16 +53,20 @@ flowchart LR
     A --> D[结合上下文生成最终回答]
 ```
 
-工具结果包含 `ok`、`searched`、`search_count`、`summary`、`sources` 和 `truncated`；失败时返回 `ok: false` 与安全错误信息。来源中 `cited: true` 表示搜索摘要引用的来源，`false` 表示搜索过程返回的其他参考来源；来源按 URL 去重并最多保留 32 条。摘要可设置长度上限，默认 12000 字，超出后标记截断；摘要和来源中的链接会保留，主模型负责最终表述，不能保证回答完全无链接。使用 OpenAI 搜索结果时仍需遵循其[来源引用展示要求](https://developers.openai.com/api/docs/guides/tools-web-search#output-and-citations)。
+工具结果包含 `ok`、`searched`、`search_count`、`summary`、`sources` 和 `truncated`；失败时返回 `ok: false` 与安全错误信息。
 
-搜索会额外消耗一次或多次模型推理及检索资源，可用性受所选模型和账号策略限制。
+来源中 `cited: true` 表示搜索摘要引用的来源，`false` 表示搜索过程返回的其他参考来源；来源按 URL 去重并最多保留 32 条。
 
-普通模型对话支持文本流式输出及 AstrBot 函数工具，OpenAI 原生搜索仅通过独立搜索工具调用。
+摘要可设置长度上限，默认 12000 字，超出后标记截断。
+
+摘要和来源中的链接会保留，主模型负责最终表述，不能保证回答完全无链接。
+
+使用 OpenAI 搜索结果时仍需遵循其[来源引用展示要求](https://developers.openai.com/api/docs/guides/tools-web-search#output-and-citations)。
 
 ## 开源许可
 
 Copyright (C) 2026 ShrHang.
 
-本项目采用 GNU Affero General Public License v3.0（`AGPL-3.0-only`），完整条款见 [LICENSE](LICENSE)。
+本项目采用 GNU Affero General Public License v3.0（`AGPL-3.0-only`），完整条款见 [LICENSE](https://github.com/ShrHang/astrbot_plugin_sign_in_with_chatgpt/blob/main/LICENSE)。
 
 本插件继承并复用 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 的 Provider 和上下文处理能力。AstrBot 本体由其原作者及贡献者持有版权，采用 [AGPL-3.0](https://github.com/AstrBotDevs/AstrBot/blob/master/LICENSE)；本仓库不包含 AstrBot 本体。第三方依赖遵循各自的许可证。
