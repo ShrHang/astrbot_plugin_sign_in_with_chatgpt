@@ -15,7 +15,7 @@ from .errors import SIWCError, public_error
 
 ACTIVE_PHASES = {"preparing", "waiting_browser", "validating"}
 ROUTES = {"status": "GET", "auth/start": "POST", "auth/cancel": "POST", "auth/logout": "POST",
-          "models": "GET", "models/refresh": "POST"}
+          "models": "GET", "models/refresh": "POST", "plan/acknowledge": "POST"}
 
 
 class Management:
@@ -38,7 +38,7 @@ class Management:
 
     def snapshot(self):
         return {"account": self.service.status(), "attempt": copy.deepcopy(self.attempt),
-                "logout": copy.deepcopy(self.logout_result)}
+                "logout": copy.deepcopy(self.logout_result), "usage": self.service.usage_snapshot()}
 
     def available(self):
         if self.stopping or self.service.closed:
@@ -134,8 +134,12 @@ class Management:
             return await self.cancel_auth(payload["attempt_id"])
         if action == "auth/logout":
             return await self.start_logout()
+        if action == "plan/acknowledge":
+            await self.service.acknowledge_welcome()
+            return self.snapshot()
         if action in {"models", "models/refresh"}:
-            return {"models": await self.service.models(force=action.endswith("refresh"))}
+            catalog = await self.service.model_catalog(force=action.endswith("refresh"))
+            return {"models": [item["slug"] for item in catalog], "catalog": catalog}
         raise SIWCError("request", "未知管理操作")
 
     @staticmethod

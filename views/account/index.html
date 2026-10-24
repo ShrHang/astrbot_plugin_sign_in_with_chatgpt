@@ -1,28 +1,33 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sign in with ChatGPT · 账号管理</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in with ChatGPT · 账号与用量</title>
   <link rel="stylesheet" href="./style.css">
   <script src="/api/plugin/page/bridge-sdk.js"></script>
   <script src="./app.js" defer></script>
 </head>
 <body>
   <main>
-    <header><span class="eyebrow">Sign in with ChatGPT</span><h1>账号管理</h1>
-      <p>管理 ChatGPT 账号登录与绑定。</p></header>
-    <section aria-labelledby="connection-title">
-      <div class="heading"><h2 id="connection-title">连接状态</h2><strong id="account-state">正在读取…</strong></div>
-      <p id="account-help" aria-live="polite">正在读取账号登录状态…</p>
-      <div class="actions"><button id="login" disabled>Continue with ChatGPT</button>
-        <button id="logout" class="danger">解绑账号</button></div>
-      <p id="countdown" class="hint"></p>
-      <div id="notice" role="status" aria-live="polite"></div>
+    <header class="page-header"><span class="eyebrow">Sign in with ChatGPT</span><h1>账号与用量</h1><p>在 AstrBot 中使用你的 ChatGPT 计划。</p></header>
+    <section class="account-panel" aria-labelledby="connection-title">
+      <div class="account-top"><div class="identity"><span class="avatar" aria-hidden="true"><img class="logo-light" src="./chatgpt-logo-black.svg" alt=""><img class="logo-dark" src="./chatgpt-logo-white.svg" alt=""></span><div class="identity-copy"><h2 id="connection-title">ChatGPT 账号</h2><p id="account-email">正在读取账号…</p></div></div><span id="account-state" class="status-pill" role="status">正在读取…</span></div>
+      <p id="account-help" class="muted" aria-live="polite">正在读取账号登录状态…</p>
+      <div class="account-bottom"><p id="plan-status" class="plan-label">登录后，符合条件的 AI 请求将使用你的 ChatGPT 计划。</p><div class="actions"><button id="login" disabled><img class="login-logo-light" src="./chatgpt-logo-white.svg" alt=""><img class="login-logo-dark" src="./chatgpt-logo-black.svg" alt=""><span id="login-label">Continue with ChatGPT</span></button><button id="logout" class="secondary" disabled>解绑账号</button></div></div>
+      <p id="countdown" class="hint"></p><div id="notice" role="status" aria-live="polite"></div>
     </section>
-    <section aria-labelledby="models-title">
-      <div class="heading"><h2 id="models-title">可用模型</h2><button id="models-refresh" class="secondary">刷新模型列表</button></div>
-      <ul id="models"><li>点击刷新获取账号模型目录</li></ul>
+    <aside id="health" class="health-panel" aria-labelledby="health-title" hidden><div><span class="eyebrow">ChatGPT</span><h2 id="health-title">用量已达上限</h2><p id="health-help"></p></div><a id="health-usage" class="button" href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage <span aria-hidden="true">↗</span></a></aside>
+    <section class="usage-section" aria-labelledby="usage-title">
+      <div class="section-heading"><div><h2 id="usage-title">用量概览</h2><p class="hint">最近 30 天 · 本地插件统计 · UTC</p></div><a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage <span aria-hidden="true">↗</span></a></div>
+      <p class="scope-note">仅记录通过此插件发起的请求，仅汇总已回报字段，未回报部分未知。ChatGPT 计划的实际用量与可用额度，请在 ChatGPT 设置中查看。</p><p id="usage-warning" class="hint" role="status"></p>
+      <div class="metrics" aria-label="本地请求统计"><div class="metric"><h3>总请求</h3><strong id="total-requests">—</strong><p id="request-detail">尚未读取</p></div><div class="metric"><h3>输入 tokens</h3><strong id="input-tokens">—</strong><p id="cached-detail">含缓存输入 · 尚未读取</p></div><div class="metric"><h3>输出 tokens</h3><strong id="output-tokens">—</strong><p id="coverage-detail">尚未读取用量回报</p></div><div class="metric"><h3>平均耗时</h3><strong id="average-duration">—</strong><p>所有已结束请求</p></div></div>
+      <div class="analytics-grid"><section class="chart-panel" aria-labelledby="activity-title"><div class="panel-heading"><h3 id="activity-title">每日请求</h3><span class="hint">UTC</span></div><div id="daily-chart" class="daily-chart" aria-hidden="true"></div><div class="chart-axis" aria-hidden="true"><span id="chart-start">—</span><span id="chart-end">—</span></div><p id="chart-empty" class="hint">正在读取请求记录…</p><details class="chart-details"><summary>查看每日数据</summary><div class="table-scroll"><table><caption class="sr-only">每日本地请求统计，UTC</caption><thead><tr><th scope="col">日期</th><th scope="col">请求</th><th scope="col">成功</th><th scope="col">失败</th><th scope="col">取消</th></tr></thead><tbody id="daily-table"></tbody></table></div></details></section><section class="model-usage-panel" aria-labelledby="model-usage-title"><div class="panel-heading"><h3 id="model-usage-title">模型分布</h3><span class="hint">请求数</span></div><ul id="model-usage" class="model-usage"><li class="empty">正在读取…</li></ul></section></div>
     </section>
+    <section class="recent-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">最近请求</h2><span class="hint">仅显示请求元数据</span></div><div class="table-scroll"><table class="recent-table"><caption class="sr-only">此插件最近完成的请求</caption><thead><tr><th scope="col">时间 <span class="hint">UTC</span></th><th scope="col">模型 / 类型</th><th scope="col">结果</th><th scope="col">Tokens <span class="hint">输入 / 输出</span></th><th scope="col">耗时</th></tr></thead><tbody id="recent-requests"><tr><td colspan="5" class="empty">正在读取请求记录…</td></tr></tbody></table></div></section>
+    <section class="models-section" aria-labelledby="models-title"><div class="section-heading"><div><h2 id="models-title">可用模型</h2><p id="models-plan" class="hint">登录后查看 ChatGPT 计划可用模型</p></div><button id="models-refresh" class="secondary" disabled>刷新模型</button></div><ul id="models" class="model-catalog"><li class="empty">登录后可查看模型列表</li></ul><p class="hint">在 AstrBot 的模型配置中选择模型。此处仅展示账号返回的模型目录。</p></section>
+    <footer>Sign in with ChatGPT <span aria-hidden="true">·</span> AstrBot 供应商插件</footer>
   </main>
+  <dialog id="welcome" aria-labelledby="welcome-title" aria-describedby="welcome-help"><span class="dialog-mark" aria-hidden="true"><img class="logo-light" src="./chatgpt-logo-black.svg" alt=""><img class="logo-dark" src="./chatgpt-logo-white.svg" alt=""></span><p class="eyebrow">ChatGPT</p><h2 id="welcome-title">你正在使用 ChatGPT 计划</h2><p id="welcome-help">此插件中符合条件的 AI 请求将使用你的 ChatGPT 计划。你可以随时前往 ChatGPT 设置查看和管理用量。</p><a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">Manage usage <span aria-hidden="true">↗</span></a><p id="welcome-notice" class="hint" role="status"></p><div class="dialog-actions"><button id="welcome-ack">知道了</button></div></dialog>
 </body>
 </html>

@@ -14,4 +14,4 @@ credentials.bin.*
 owner.lock
 *.log
 
-AGENTS.md
+*AGENTS.md

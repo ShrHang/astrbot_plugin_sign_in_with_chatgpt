@@ -2,5 +2,5 @@ name: astrbot_plugin_sign_in_with_chatgpt
 display_name: Sign in with ChatGPT
 author: ShrHang
 desc: 通过正式 Sign in with ChatGPT 授权接入 AstrBot 内置 Agent
-version: v0.3.0.1
+version: v0.3.0.2
 astrbot_version: "==4.29.1"

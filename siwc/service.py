@@ -10,6 +10,7 @@ from . import DISPLAY_NAME, RESOURCE
 from .auth import OAuth, official_url
 from .credentials import CredentialStore
 from .errors import SIWCError, http_error, public_error
+from .usage import UsageStore
 
 
 async def disk_call(function, *args):
@@ -61,10 +62,12 @@ class Service:
         self.tasks = set()
         self.requests = {}
         self.model_cache = None
+        self.usage = UsageStore(self.store.directory)
 
     async def start(self):
         try:
             self.record = await disk_call(self.store.open)
+            await disk_call(self.usage.open)
             state = self.record.get("account_state")
             self.state = state if state in ("login_required", "configuration_error") else (
                 "ready" if (self.record.get("registration") or {}).get("access_token") else "unbound")
@@ -122,8 +125,35 @@ class Service:
         return {"state": self.state, "registered": bool(registration.get("client_id")),
             "registration_pending": bool(self.record.get("pending_client_id")),
             "connected": bool(registration.get("access_token")) and self.state == "ready",
+            "email": registration.get("email", ""),
+            "welcome_pending": bool(self.record.get("welcome_pending")) and self.state == "ready",
             "expires_at": registration.get("expires_at"), "authorizing": self.authorizing,
             "refreshing": self.refreshing, "logging_out": self.logging_out, "health": copy.deepcopy(self.health)}
+
+    def usage_snapshot(self):
+        return self.usage.snapshot()
+
+    def record_usage(self, generation, **request):
+        # Statistics describe this installation's already-dispatched requests.
+        # Logout, reauthorization and shutdown advance the account generation
+        # before cancelling producers; their cancellation still belongs here.
+        # UsageStore.close runs after those producers finish and rejects later
+        # records. Account health and response delivery remain generation-gated.
+        try:
+            self.usage.record(**request)
+        except Exception:
+            # Local dashboard storage must never change inference delivery.
+            self.usage.storage_error = True
+
+    @tracked
+    async def acknowledge_welcome(self):
+        self.admission()
+        generation = self.generation
+        async with self.commit_lock:
+            if self.closed or generation != self.generation:
+                raise SIWCError("cancelled", "账号状态已变化")
+            if self.record.get("welcome_pending"):
+                await self._save({**self.record, "plan_notice_acknowledged": True, "welcome_pending": False})
 
     async def _save(self, record):
         async def commit():
@@ -155,7 +185,8 @@ class Service:
                 async with self.commit_lock:
                     if self.closed or generation != self.generation:
                         raise SIWCError("cancelled", "账号状态已变化，登录结果已丢弃")
-                    record = {**self.record, "registration": registration, "pending_client_id": None, "account_state": "ready"}
+                    record = {**self.record, "registration": registration, "pending_client_id": None, "account_state": "ready",
+                              "welcome_pending": not bool(self.record.get("plan_notice_acknowledged"))}
                     try:
                         await self._save(record)
                     except asyncio.CancelledError:
@@ -242,7 +273,7 @@ class Service:
                 self.generation += 1
                 self.model_cache = None
                 retained = {k: registration[k] for k in ("client_id", "sub", "email") if k in registration}
-                self.record = {**self.record, "registration": retained or None, "account_state": "unbound"}
+                self.record = {**self.record, "registration": retained or None, "account_state": "unbound", "welcome_pending": False}
                 self.state = "unbound"
                 await self._save(self.record)
             if on_local_clear:
@@ -261,11 +292,14 @@ class Service:
         finally:
             self.logging_out = False
 
-    @tracked
     async def models(self, *, force=False):
+        return [item["slug"] for item in await self.model_catalog(force=force)]
+
+    @tracked
+    async def model_catalog(self, *, force=False):
         now = time.monotonic()
         if not force and self.model_cache and self.model_cache[0] > now and self.model_cache[1] == self.generation:
-            return list(self.model_cache[2])
+            return copy.deepcopy(self.model_cache[2])
         self.admission()
         generation = self.generation
         task = asyncio.current_task()
@@ -276,14 +310,23 @@ class Service:
                 response = await self.client.get(RESOURCE + "/models", headers={"Authorization": "Bearer " + token})
                 if response.is_error:
                     raise http_error(response, stage="model_catalog")
-                models = [item["slug"] for item in response.json().get("models", [])
-                    if item.get("visibility") == "list" and isinstance(item.get("slug"), str)]
+                models = []
+                seen = set()
+                for item in response.json().get("models", []):
+                    if not isinstance(item, dict) or item.get("visibility") != "list" or not isinstance(item.get("slug"), str):
+                        continue
+                    slug = item["slug"]
+                    if not slug or slug in seen:
+                        continue
+                    display_name = item.get("display_name")
+                    models.append({"slug": slug, "display_name": display_name if isinstance(display_name, str) and display_name.strip() else slug})
+                    seen.add(slug)
                 if not models:
                     raise SIWCError("protocol", "模型目录未返回可显示的模型 slug")
                 if generation != self.generation:
                     raise SIWCError("cancelled", "获取目录时账号状态已变化")
                 self.model_cache = (now + 300, generation, models)
-                return list(models)
+                return copy.deepcopy(models)
         except (httpx.HTTPError, TimeoutError) as exc:
             error = SIWCError("timeout" if isinstance(exc, TimeoutError) else "network", "模型目录连接失败或超时", stage="model_catalog")
             self.note_health(error, generation)
@@ -300,6 +343,7 @@ class Service:
         self.closed = True
         self.generation += 1
         await self._cancel(list(self.tasks))
+        await finish_atomic(asyncio.create_task(self.usage.close()))
         self._auth_lease = None
         await self.oauth.close()
         await self.client.aclose()

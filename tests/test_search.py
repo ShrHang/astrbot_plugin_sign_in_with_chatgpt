@@ -196,6 +196,7 @@ class SearchIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.service.untrack_request = untrack
         self.service.access_token = token
         self.service.note_health = lambda error, generation: None
+        self.service.record_usage = lambda generation, **request: None
         bind(self.service)
         self.provider = SIWCProvider({"model": "research-model", "reasoning_effort": "low"}, {})
         self.tools = []

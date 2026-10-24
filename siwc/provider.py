@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import time
 from contextlib import aclosing
 from types import SimpleNamespace
 
@@ -18,6 +19,7 @@ from . import DISPLAY_NAME, RESOURCE
 from .errors import SIWCError, http_error
 from .responses import CompletedOutput, ResponseDiagnostics, adapt_payload, completed_response, parse_result, parse_search_result, sse_events
 from .service import active
+from .usage import reported_usage
 
 PLACEHOLDER = "siwc-managed-no-api-key"
 SEARCH_PROMPT = (
@@ -184,6 +186,7 @@ class SIWCProvider(ProviderOpenAIResponses):
         task = asyncio.current_task()
         generation = service.generation
         output = CompletedOutput()
+        started, usage, request_model, outcome = None, None, None, "failed"
         try:
             # One total deadline includes queueing, refresh, media preparation and HTTP.
             async with asyncio.timeout(service.total_timeout), service.semaphore:
@@ -202,6 +205,8 @@ class SIWCProvider(ProviderOpenAIResponses):
                                             native_web_search=_native_web_search)
                 token = await service.access_token()
                 generation = service.generation
+                request_model = body["model"]
+                started = time.monotonic()
                 async with service.client.stream("POST", RESOURCE + "/responses", json=body,
                     headers={"Authorization": "Bearer " + token, "Accept": "text/event-stream"}) as response:
                     if response.is_error:
@@ -214,6 +219,9 @@ class SIWCProvider(ProviderOpenAIResponses):
                             raise SIWCError("cancelled", "请求期间账号状态已变化")
                         diagnostics.observe(event)
                         output.observe(event)
+                        response_data = event.get("response")
+                        if isinstance(response_data, dict):
+                            usage = reported_usage(response_data.get("usage")) or usage
                         final = completed_response(event)
                         if final is not None:
                             try:
@@ -228,6 +236,7 @@ class SIWCProvider(ProviderOpenAIResponses):
                             if _native_web_search:
                                 logger.info("%s 搜索工具检索完成：调用次数=%s", DISPLAY_NAME, result["search_count"])
                             await queue.put(result)
+                            outcome = "succeeded"
                             return
                         kind = event.get("type")
                         if kind in {"response.output_text.delta", "response.refusal.delta"} and not _native_web_search:
@@ -236,7 +245,12 @@ class SIWCProvider(ProviderOpenAIResponses):
                             await queue.put(LLMResponse(role="assistant", reasoning_content=event.get("delta", ""), is_chunk=True))
                 raise SIWCError("incomplete", "连接在 response.completed 前断开；未自动重放请求")
         except SIWCError as error:
+            if error.category == "cancelled":
+                outcome = "cancelled"
             service.note_health(error, generation)
+            raise
+        except asyncio.CancelledError:
+            outcome = "cancelled"
             raise
         except (httpx.HTTPError, TimeoutError) as exc:
             error = SIWCError("timeout" if isinstance(exc, TimeoutError) else "network",
@@ -244,6 +258,9 @@ class SIWCProvider(ProviderOpenAIResponses):
             service.note_health(error, generation)
             raise error from None
         finally:
+            if started is not None:
+                service.record_usage(generation, model=request_model, kind="search" if _native_web_search else "chat",
+                    outcome=outcome, duration_ms=max(0, round((time.monotonic() - started) * 1000)), usage=usage)
             output.clear()
             self._tasks.discard(task)
             service.untrack_request(task)
