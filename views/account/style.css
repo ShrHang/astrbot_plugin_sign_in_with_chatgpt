@@ -1,4 +1,5 @@
 /* AstrBot bridge updates data-theme live. All assets are local. */
+.recent-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}.pagination-actions{display:flex;align-items:center;gap:12px}.pagination-actions button{min-height:34px;padding:6px 12px}.pagination-actions .hint{font-variant-numeric:tabular-nums;white-space:nowrap}
 :root{color-scheme:light;--bg:#fff;--surface:#fff;--subtle:#f7f7f7;--text:#202020;--muted:#707070;--border:#e5e5e5;--strong:#202020;--on-strong:#fff;--bar:#777;--error:#a33b32}
 :root[data-theme=dark]{color-scheme:dark;--bg:#181818;--surface:#202020;--subtle:#262626;--text:#ececec;--muted:#aaa;--border:#363636;--strong:#ececec;--on-strong:#202020;--bar:#a3a3a3;--error:#f1a49c}
 @media(prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;--bg:#181818;--surface:#202020;--subtle:#262626;--text:#ececec;--muted:#aaa;--border:#363636;--strong:#ececec;--on-strong:#202020;--bar:#a3a3a3;--error:#f1a49c}}

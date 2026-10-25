@@ -7,6 +7,8 @@
   const errors = { configuration_error: "授权客户端配置异常，请检查插件配置。", login_required: "ChatGPT 授权已失效，请重新授权。", limited: "请前往 ChatGPT 设置查看适用的用量限制。", temporary: "ChatGPT 服务暂不可用，请稍后重试。", permission: "当前账号或工作区不允许此操作，请检查权限。", request: "请求未能完成，请检查配置后重试。", browser: "系统浏览器未能打开，请检查默认浏览器设置。", timeout: "操作已超时，请重试。", closed: "管理服务已停止，请重新打开本页。" };
   let snapshot = null, timer = null, stopped = false, fetching = false, pendingAction = false;
   let catalogContext = null, catalogEpoch = 0, modelsLoading = false, revision = 0, welcomeSaving = false;
+  const recentPageSize = 10;
+  let recentPage = 0;
   const number = (value) => Number.isFinite(value) && value >= 0 ? value : 0;
   const count = (value) => new Intl.NumberFormat("zh-CN").format(number(value));
   const duration = (value) => typeof value !== "number" || !Number.isFinite(value) ? "—" : value < 1000 ? `${Math.round(value)} ms` : `${(value / 1000).toFixed(1)} s`;
@@ -131,8 +133,15 @@
       track.append(fill); li.append(row, track); el("model-usage").append(li);
     }
     if (!models.length) empty("model-usage", usage ? "有请求记录后显示模型分布" : "本地统计暂不可用");
+    renderRecent(usage);
+  }
+  function renderRecent(usage) {
+    const recent = usage?.recent || [];
+    const pageCount = Math.max(1, Math.ceil(recent.length / recentPageSize));
+    recentPage = Math.max(0, Math.min(recentPage, pageCount - 1));
+    const start = recentPage * recentPageSize;
     el("recent-requests").replaceChildren();
-    for (const request of (usage?.recent || [])) {
+    for (const request of recent.slice(start, start + recentPageSize)) {
       const tr = node("tr");
       const date = new Date(request.at * 1000);
       tr.append(node("td", Number.isFinite(date.getTime()) ? date.toISOString().slice(5, 19).replace("T", " ") : "—"));
@@ -147,6 +156,11 @@
       const tr = node("tr"), td = node("td", usage ? "尚无请求记录。通过此插件使用模型后，记录会显示在这里。" : "本地统计暂不可用", "empty");
       td.colSpan = 5; tr.append(td); el("recent-requests").append(tr);
     }
+    el("recent-pagination").hidden = recent.length <= recentPageSize;
+    text("recent-range", recent.length ? `第 ${start + 1}–${Math.min(start + recentPageSize, recent.length)} 条，共 ${recent.length} 条` : "");
+    text("recent-page", `${recentPage + 1} / ${pageCount}`);
+    el("recent-prev").disabled = stopped || recentPage === 0;
+    el("recent-next").disabled = stopped || recentPage >= pageCount - 1;
   }
   function schedule() {
     clearTimeout(timer);
@@ -198,6 +212,13 @@
   });
   el("logout").addEventListener("click", () => { if (window.confirm("确定解绑当前 ChatGPT 账号？")) action("auth/logout", {}); });
   el("models-refresh").addEventListener("click", () => loadModels(true));
+  for (const [id, step] of [["recent-prev", -1], ["recent-next", 1]]) {
+    el(id).addEventListener("click", () => {
+      if (stopped) return;
+      recentPage += step;
+      renderRecent(snapshot?.usage);
+    });
+  }
   el("welcome-ack").addEventListener("click", acknowledgeWelcome);
   el("welcome").addEventListener("cancel", (event) => { event.preventDefault(); acknowledgeWelcome(); });
   document.addEventListener("visibilitychange", () => { clearTimeout(timer); if (!document.hidden) refresh(); });

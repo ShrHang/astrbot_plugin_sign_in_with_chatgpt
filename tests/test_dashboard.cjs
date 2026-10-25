@@ -127,3 +127,35 @@ test('output-only usage keeps missing input and cache totals unknown', async () 
   assert.equal(f.get('input-tokens').textContent, '0');
   assert.match(f.get('cached-detail').textContent, /缓存输入 0/);
 });
+
+test('recent requests paginate, preserve the page on refresh and clamp when records shrink', async () => {
+  const data = status();
+  data.usage.recent = Array.from({ length: 23 }, (_, i) => ({ ...data.usage.recent[0], model: `model-${i + 1}` }));
+  const f = await fixture(data);
+  const firstModel = () => f.get('recent-requests').children[0].children[1].textContent;
+  assert.equal(f.get('recent-pagination').hidden, false);
+  assert.equal(f.get('recent-requests').children.length, 10);
+  assert.equal(firstModel(), 'model-1对话');
+  assert.equal(f.get('recent-prev').disabled, true);
+  assert.equal(f.get('recent-range').textContent, '第 1–10 条，共 23 条');
+  f.get('recent-next').dispatch('click');
+  assert.equal(firstModel(), 'model-11对话');
+  await f.refresh(data);
+  assert.equal(f.get('recent-page').textContent, '2 / 3');
+  assert.equal(firstModel(), 'model-11对话');
+  f.get('recent-next').dispatch('click');
+  assert.equal(f.get('recent-requests').children.length, 3);
+  assert.equal(f.get('recent-range').textContent, '第 21–23 条，共 23 条');
+  assert.equal(f.get('recent-next').disabled, true);
+  f.get('recent-prev').dispatch('click');
+  assert.equal(firstModel(), 'model-11对话');
+  data.usage.recent = data.usage.recent.slice(0, 10);
+  await f.refresh(data);
+  assert.equal(f.get('recent-pagination').hidden, true);
+  assert.equal(firstModel(), 'model-1对话');
+  data.usage.recent = [];
+  await f.refresh(data);
+  assert.match(f.get('recent-requests').textContent, /尚无请求记录/);
+  await f.refresh({ ...data, usage: null });
+  assert.match(f.get('recent-requests').textContent, /暂不可用/);
+});
