@@ -91,8 +91,8 @@ test('every external usage link protects opener and no remote fonts or assets ar
   const html = fs.readFileSync(path.join(root, 'views/account/index.html'), 'utf8');
   const links = [...html.matchAll(/<a\b[^>]+>/g)].map((match) => match[0]);
   assert.equal(links.length, 3);
-  for (const link of links) { assert.match(link, /href="https:\/\/chatgpt.com\/settings\/usage"/); assert.match(link, /target="_blank"/); assert.match(link, /rel="noopener noreferrer"/); }
-  assert.doesNotMatch(html, /(?:src|href)="https?:\/\/(?!chatgpt.com\/settings\/usage)/);
+  for (const link of links) { assert.match(link, /href="https:\/\/chatgpt.com\/codex\/settings\/usage"/); assert.match(link, /target="_blank"/); assert.match(link, /rel="noopener noreferrer"/); }
+  assert.doesNotMatch(html, /(?:src|href)="https?:\/\/(?!chatgpt.com\/codex\/settings\/usage)/);
 });
 
 test('retained invalid registration can be unbound while configuration prevents login', async () => {
@@ -158,4 +158,22 @@ test('recent requests paginate, preserve the page on refresh and clamp when reco
   assert.match(f.get('recent-requests').textContent, /尚无请求记录/);
   await f.refresh({ ...data, usage: null });
   assert.match(f.get('recent-requests').textContent, /暂不可用/);
+});
+
+ test('all usage entries bypass sandbox navigation through authenticated bridge and show manual fallback', async () => {
+  const f = await fixture();
+  for (const id of ['health-usage', 'overview-usage', 'welcome-usage']) {
+    let prevented = false;
+    f.get(id).dispatch('click', { preventDefault() { prevented = true; } });
+    await flush();
+    assert.equal(prevented, true);
+    const target = id === 'welcome-usage' ? 'welcome-notice' : 'notice';
+    assert.match(f.get(target).textContent, /AstrBot 所在机器/);
+    assert.match(f.get(target).textContent, /https:\/\/chatgpt.com\/codex\/settings\/usage/);
+  }
+  assert.equal(f.state.calls.filter(([route]) => route === 'usage/open').length, 3);
+  f.state.responses['usage/open'] = { ok: false, error: { category: 'browser' } };
+  f.get('welcome-usage').dispatch('click', { preventDefault() {} });
+  await flush();
+  assert.match(f.get('welcome-notice').textContent, /未能打开浏览器.*https:/);
 });

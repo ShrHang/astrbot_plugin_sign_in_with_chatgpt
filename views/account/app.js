@@ -220,6 +220,23 @@
     });
   }
   el("welcome-ack").addEventListener("click", acknowledgeWelcome);
+  let usageOpening = false;
+  for (const id of ["health-usage", "overview-usage", "welcome-usage"]) {
+    el(id).addEventListener("click", async (event) => {
+      event.preventDefault();
+      if (stopped || usageOpening) return;
+      usageOpening = true;
+      const target = id === "welcome-usage" ? "welcome-notice" : "notice";
+      const fallback = "如未看到页面，请复制此地址到自己的浏览器：https://chatgpt.com/codex/settings/usage";
+      text(target, `正在打开用量面板。${fallback}`);
+      try {
+        await api("usage/open", {});
+        if (!stopped) text(target, `已请求在 AstrBot 所在机器打开浏览器。${fallback}`);
+      } catch (_) {
+        if (!stopped) text(target, `未能打开浏览器。${fallback}`);
+      } finally { usageOpening = false; }
+    });
+  }
   el("welcome").addEventListener("cancel", (event) => { event.preventDefault(); acknowledgeWelcome(); });
   document.addEventListener("visibilitychange", () => { clearTimeout(timer); if (!document.hidden) refresh(); });
   if (!bridge) { notice("请从 AstrBot 插件页面打开本页。"); return; }

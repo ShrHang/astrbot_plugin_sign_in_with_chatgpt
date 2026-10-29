@@ -51,6 +51,26 @@ class DashboardManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("account", result)
         self.assertEqual(ROUTES["plan/acknowledge"], "POST")
 
+    async def test_usage_opens_only_fixed_official_url(self):
+        self.management.browser = AsyncMock()
+        self.assertEqual(await self.management.dispatch("usage/open", {}), {"opened": True})
+        self.management.browser.assert_awaited_once_with("https://chatgpt.com/codex/settings/usage")
+        self.assertEqual(ROUTES["usage/open"], "POST")
+        self.management.browser.reset_mock()
+        with self.assertRaises(SIWCError):
+            await self.management.dispatch("usage/open", {"url": "https://example.com"})
+        self.management.browser.assert_not_awaited()
+        self.service.closed = True
+        with self.assertRaises(SIWCError):
+            await self.management.dispatch("usage/open", {})
+        self.management.browser.assert_not_awaited()
+
+    async def test_usage_browser_failure_is_reported(self):
+        self.management.browser = AsyncMock(side_effect=SIWCError("browser", "无法打开"))
+        with self.assertRaises(SIWCError) as caught:
+            await self.management.dispatch("usage/open", {})
+        self.assertEqual(caught.exception.category, "browser")
+
     async def test_acknowledgement_rejects_extra_parameters(self):
         for payload in ({"email": "other@example.com"}, [], None):
             with self.subTest(payload=payload), self.assertRaises(SIWCError):

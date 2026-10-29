@@ -14,8 +14,9 @@ from . import DISPLAY_NAME, PLUGIN_NAME
 from .errors import SIWCError, public_error
 
 ACTIVE_PHASES = {"preparing", "waiting_browser", "validating"}
+USAGE_URL = "https://chatgpt.com/codex/settings/usage"
 ROUTES = {"status": "GET", "auth/start": "POST", "auth/cancel": "POST", "auth/logout": "POST",
-          "models": "GET", "models/refresh": "POST", "plan/acknowledge": "POST"}
+          "models": "GET", "models/refresh": "POST", "plan/acknowledge": "POST", "usage/open": "POST"}
 
 
 class Management:
@@ -128,6 +129,9 @@ class Management:
             raise SIWCError("request", "管理接口参数无效")
         if action == "status":
             return self.snapshot()
+        if action == "usage/open":
+            await self.browser(USAGE_URL)
+            return {"opened": True}
         if action == "auth/start":
             return await self.start_auth()
         if action == "auth/cancel":
